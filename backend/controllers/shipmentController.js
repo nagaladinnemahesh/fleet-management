@@ -1,64 +1,76 @@
-import Shipment from '../models/Shipment.js';
+import Shipment from "../models/Shipment.js";
+import Vehicle from "../models/Vehicle.js";
+import User from "../models/User.js";
 
+// Client creates shipment
 export const createShipment = async (req, res) => {
-    try {
-        const {shipmentType, weight, priority, pickupLocation, deliveryLocation} = req.body;
+  const { shipmentType, pickupLocation, deliveryLocation, weight, priority } = req.body;
 
-        const shipment = await Shipment.create({
-            clientId: req.user.id, // logged in client
-            shipmentType,
-            weight,
-            priority,
-            pickupLocation,
-            deliveryLocation
-        });
-
-        res.status(201).json({message: "Shipment request created", shipment});
-    } catch(error){
-        res.status(500).json({message: "Server error", error});
-    }
+  try {
+    const shipment = await Shipment.create({
+      client: req.user._id,
+      shipmentType,
+      pickupLocation,
+      deliveryLocation,
+      weight,
+      priority
+    });
+    res.status(201).json(shipment);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
-export const getShipments = async(req, res) => {
-    try {
-        const shipments = await Shipment.find()
-            .populate('clientId', 'name email')
-            .populate('driverId', 'name')
-            .populate('vehicleId', 'vehicleNo type');
-
-        res.json(shipments);
-    } catch(error){
-        res.status(500).json({message: "Server error", error})
-    }
+// Admin gets all shipments
+export const getShipments = async (req, res) => {
+  try {
+    const shipments = await Shipment.find().populate("client assignedDriver assignedVehicle");
+    res.json(shipments);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
-export const assignShipment = async(req, res) => {
-    try {
-        const {driverId, vehicleId, expectedDelivery} = req.body;
+// Admin assigns shipment
+export const assignShipment = async (req, res) => {
+  const { id } = req.params;
+  const { driverId, vehicleId, deliveryDate } = req.body;
 
-        const shipment = await Shipment.findByIdAndUpdate(
-            req.params.id,
-            {driverId, vehicleId, expectedDelivery, status: "assigned"},
-            {new: true}
-        );
+  try {
+    const shipment = await Shipment.findById(id);
+    if (!shipment) return res.status(404).json({ message: "Shipment not found" });
 
-        if (!shipment) return res.status(404).json({message: "Shipment not found"});
+    const driver = await User.findById(driverId);
+    const vehicle = await Vehicle.findById(vehicleId);
 
-        res.json({message: "Shipement assigned successfully", shipment});
-    } catch (error){
-        res.status(500).json({message: "Server error", error});
+    if (!driver || driver.role !== "driver") {
+      return res.status(400).json({ message: "Invalid driver" });
     }
+    if (!vehicle || vehicle.status !== "available") {
+      return res.status(400).json({ message: "Invalid or unavailable vehicle" });
+    }
+
+    shipment.assignedDriver = driverId;
+    shipment.assignedVehicle = vehicleId;
+    shipment.deliveryDate = deliveryDate;
+    shipment.status = "assigned";
+    await shipment.save();
+
+    vehicle.status = "assigned";
+    await vehicle.save();
+
+    res.json(shipment);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
-export const getMyShipments = async(req, res) => {
-    try {
-        const shipments = await Shipment.find({clientId: req.user.id})
-            .populate('driverId', 'name')
-            .populate('vehicleId', 'vehicleNo type');
-        
-        res.json(shipments);
-    } catch (error){
-        res.status(500).json({message: "Server error", error});
-    }
+// Client views their shipments
+export const getMyShipments = async (req, res) => {
+  try {
+    const shipments = await Shipment.find({ client: req.user._id }).populate("assignedDriver assignedVehicle");
+    res.json(shipments);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
-

@@ -1,19 +1,19 @@
-import express from 'express';
-import {createShipment, getShipments, assignShipment, getMyShipments} from '../controllers/shipmentController.js';
-import authMiddleware from '../middleware/authMiddleware.js';
+import express from "express";
+import { createShipment, getShipments, assignShipment, getMyShipments } from "../controllers/shipmentController.js";
+import { protect, authorize } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// client creates shipment request
-router.post("/", authMiddleware(['client']), createShipment);
+// Client creates shipment request
+router.post("/", protect, authorize(["client"]), createShipment);
 
-// admin views all shipments
-router.get("/", authMiddleware(['admin']), getShipments);
+// Admin views all shipments
+router.get("/", protect, authorize(["admin"]), getShipments);
 
-// admin assigns shipment to driver and vehicle
-router.put("/:id/assign", authMiddleware(['admin']), assignShipment);
+// Admin assigns shipment
+router.put("/:id/assign", protect, authorize(["admin"]), assignShipment);
 
-// client views their shipments
-router.get("/my", authMiddleware(['client']), getMyShipments);
+// Client views their shipments
+router.get("/my", protect, authorize(["client"]), getMyShipments);
 
 export default router;
