@@ -1,23 +1,32 @@
-import jwt from 'jsonwebtoken';
+import jwt from "jsonwebtoken";
+import User from "../models/User.js";
 
-const authMiddleware = (roles = []) => {
-    return (req, res, next) => {
-        try{
-        const token = req.headers.authorization?.split(" ")[1];
-        if (!token) return res.status(401).json({message: "No token, authorization denied"});
+// protected routes (only logged-in users can access)
+const protect = async (req, res, next) => {
+  let token;
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded;
+  try {
+    // Check if request has an Authorization header with Bearer token
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer")
+    ) {
+      token = req.headers.authorization.split(" ")[1];
 
-        if (roles.length && !roles.includes(decoded.role)) {
-            return res.status(403).json({message: "Access denied"});
-        }
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        next();
-    } catch (error){
-        res.status(401).json({message: "Token is not valid"});
+      req.user = await User.findById(decoded.id).select("-password");
+
+      return next();
     }
-}
+
+    // If no token provided
+    return res.status(401).json({ message: "Not authorized, no token" });
+  } catch (error) {
+    return res.status(401).json({ message: "Not authorized, token failed" });
+  }
 };
 
-export default authMiddleware;
+export default protect;
+
+
