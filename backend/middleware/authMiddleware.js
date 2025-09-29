@@ -1,32 +1,32 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
-// protected routes (only logged-in users can access)
-const protect = async (req, res, next) => {
+// Protect routes (only logged-in users)
+export const protect = async (req, res, next) => {
   let token;
 
-  try {
-    // Check if request has an Authorization header with Bearer token
-    if (
-      req.headers.authorization &&
-      req.headers.authorization.startsWith("Bearer")
-    ) {
+  if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
+    try {
       token = req.headers.authorization.split(" ")[1];
-
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
       req.user = await User.findById(decoded.id).select("-password");
-
-      return next();
+      next();
+    } catch (error) {
+      return res.status(401).json({ message: "Not authorized, token failed" });
     }
+  }
 
-    // If no token provided
+  if (!token) {
     return res.status(401).json({ message: "Not authorized, no token" });
-  } catch (error) {
-    return res.status(401).json({ message: "Not authorized, token failed" });
   }
 };
 
-export default protect;
-
-
+// Role-based access
+export const authorize = (roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ message: "Forbidden: Access denied" });
+    }
+    next();
+  };
+};

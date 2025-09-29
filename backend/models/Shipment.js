@@ -12,9 +12,11 @@ const shipmentSchema = new mongoose.Schema({
         enum: ["pending", "assigned", "in-progress", "delivered"],
         default: "pending"
     },
-    driverId: {type: mongoose.Schema.Types.ObjectId, ref: "Driver"},
-    vehicleId: {type: mongoose.Schema.Types.ObjectId, ref: "Vehicle"},
+    assignedDriver: {type: mongoose.Schema.Types.ObjectId, ref: "User"},
+    assignedVehicle: {type: mongoose.Schema.Types.ObjectId, ref: "Vehicle"},
     expectedDelivery: {type: Date}
     }, {timestamps: true});
 
-export default mongoose.model("Shipment", shipmentSchema);
+const Shipment = mongoose.model("Shipment", shipmentSchema)
+
+export default Shipment;
